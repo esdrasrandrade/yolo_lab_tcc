@@ -2,7 +2,7 @@ Passo a Passo para Executar a Coleta
 1. Ative o ambiente virtual (venv)
 
 Bash:
-source venv/bin/activate
+```source venv/bin/activate```
 
 2. Modifique a variável da claasse e o caminho da pasta correspondente aonde as imagens do dataset vão ser armazenadas:
 Bash:
