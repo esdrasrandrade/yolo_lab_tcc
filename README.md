@@ -3,7 +3,7 @@
 
   Bash:
 
-    ```source venv/bin/activate```
+    source venv/bin/activate
 
 2. Modifique a variável da classe e o caminho da pasta correspondente aonde as imagens do dataset vão ser armazenadas:
   Bash:
