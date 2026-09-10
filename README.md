@@ -60,10 +60,16 @@ Com o ambiente virtual ativo, inicie a aplicação:
 
    ````python stream_e_coleta.py````
    
-## 3. Visualizar o Feed de Vídeo no Navegador
-Antes de seguir, verifique o endereço IP local da sua Raspberry Pi através do comando ```hostname -I``` no terminal. Abra um navegador no computador (Chrome, Firefox ou Edge) e acesse a URL:
+## 3. Visualizar o Feed de Vídeo no Navegador e imagens capturadas para o dataset 
+Antes de seguir, verifique o endereço IP local da sua Raspberry Pi através do comando ```hostname -I``` no terminal.
+
+Abra um navegador no computador (Chrome, Firefox ou Edge) e acesse a URL:
 
    ````http://<IP_DA_RASPBERRY_PI>:8080````
+   
+Para visualizar os arquivos do dataset em tempo real:
+
+   ````http://<IP_DA_RASPBERRY_PI:8080/fotos````
    
 Utilize a transmissão em tempo real para ajustar o enquadramento, foco, distância e iluminação da peça sobre a esteira/bancada.
 
