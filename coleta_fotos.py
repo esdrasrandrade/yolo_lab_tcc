@@ -1,8 +1,12 @@
+import io
 import os
 import subprocess
-import sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
+import threading
+import time
 
-CLASSE = "serrote"
+CLASSE = "serrote"  # Altere para "martelo" quando necessário
 PASTA_DESTINO = f"tcc_vita_dataset/images/{CLASSE}"
 TOTAL_AMOSTRAS = 400
 
@@ -29,16 +33,87 @@ def obter_proximo_indice():
 
 proximo_indice = obter_proximo_indice()
 ultima_foto_salva = None
+frame_atual = None
+lock = threading.Lock()
 
-print(f"=== COLETA DE DATASET V.I.T.A ===")
-print(f"Classe ativa: {CLASSE.upper()}")
-print(f"Diretório: {PASTA_DESTINO}")
-print(f"Fotos já armazenadas: {proximo_indice}/{TOTAL_AMOSTRAS}")
+
+# Servidor Web para o Stream MJPEG
+class StreamingHandler(BaseHTTPRequestHandler):
+
+    def do_GET(self):
+        if self.path == "/":
+            self.send_response(200)
+            self.send_header(
+                "Content-type",
+                "multipart/x-mixed-replace; boundary=FRAME",
+            )
+            self.end_headers()
+            try:
+                while True:
+                    with lock:
+                        if frame_atual is None:
+                            time.sleep(0.05)
+                            continue
+                        buf = frame_atual
+
+                    self.wfile.write(b"--FRAME\r\n")
+                    self.send_header("Content-Type", "image/jpeg")
+                    self.send_header("Content-Length", str(len(buf)))
+                    self.end_headers()
+                    self.wfile.write(buf)
+                    self.wfile.write(b"\r\n")
+                    time.sleep(0.08)  # ~12 FPS no navegador
+            except Exception:
+                pass
+
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
+
+
+def iniciar_servidor_http():
+    server = ThreadedHTTPServer(("0.0.0.0", 8080), StreamingHandler)
+    server.serve_forever()
+
+
+# Loop contínuo para atualizar a imagem visualizada
+def capturar_frames():
+    global frame_atual
+    while True:
+        # Pega uma amostra leve e rápida do sensor para a Web
+        cmd = [
+            "rpicam-still",
+            "-o",
+            "-",
+            "-t",
+            "1",
+            "--width",
+            "640",
+            "--height",
+            "480",
+            "-n",
+            "--quality",
+            "50",
+        ]
+        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        if proc.returncode == 0:
+            with lock:
+                frame_atual = proc.stdout
+        time.sleep(0.05)
+
+
+# Inicializa as threads do servidor e do stream
+threading.Thread(target=iniciar_servidor_http, daemon=True).start()
+threading.Thread(target=capturar_frames, daemon=True).start()
+
+print(f"=== STREAMING E COLETA TCC V.I.T.A ===")
+print(f"Abra no navegador do PC: http://100.78.71.106:8080")
+print(f"Classe ativa: {CLASSE.upper()} | Fotos: {proximo_indice}/{TOTAL_AMOSTRAS}")
 print("-" * 40)
-print("Comandos:")
-print("  s + ENTER -> Capturar e salvar foto")
-print("  d + ENTER -> Deletar a última foto capturada")
-print("  e + ENTER -> Sair e salvar progresso")
+print("Comandos do Terminal:")
+print("  s + ENTER -> Capturar foto em ALTA RESOLUÇÃO")
+print("  d + ENTER -> Deletar última foto")
+print("  e + ENTER -> Sair")
 print("-" * 40)
 
 while proximo_indice < TOTAL_AMOSTRAS:
@@ -52,12 +127,13 @@ while proximo_indice < TOTAL_AMOSTRAS:
         nome_arquivo = os.path.join(
             PASTA_DESTINO, f"{CLASSE}_{proximo_indice:04d}.jpg"
         )
+        # Captura a foto final em boa resolução (720p)
         cmd = [
             "rpicam-still",
             "-o",
             nome_arquivo,
             "-t",
-            "200",
+            "100",
             "--width",
             "1280",
             "--height",
@@ -73,9 +149,7 @@ while proximo_indice < TOTAL_AMOSTRAS:
             ultima_foto_salva = nome_arquivo
             proximo_indice += 1
         else:
-            print(
-                "❌ Erro ao capturar imagem pela PiCam. Verifique a conexão."
-            )
+            print("❌ Erro na captura.")
 
     elif comando == "d":
         if ultima_foto_salva and os.path.exists(ultima_foto_salva):
@@ -83,14 +157,7 @@ while proximo_indice < TOTAL_AMOSTRAS:
             print(f"🗑 Foto deletada: {ultima_foto_salva}")
             proximo_indice -= 1
             ultima_foto_salva = None
-        else:
-            print("⚠️ Nenhuma foto recente para deletar nesta sessão.")
 
     elif comando == "e":
-        print("\nSaindo... Progresso salvo com sucesso!")
-        sys.exit(0)
-
-    else:
-        print("Comando inválido. Use 's' para salvar, 'd' para deletar ou 'e' para sair.")
-
-print(f"\nColeta da classe {CLASSE} finalizada! Total: {proximo_indice} fotos.")
+        print("\nEncerrando...")
+        break
