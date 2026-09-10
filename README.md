@@ -35,28 +35,40 @@ Requisitos Prévios
 
 3. Verificar a Conexão da Câmera
    Certifique-se de que o sensor é identificado pelo sistema:
-   rpicam-hello --list-cameras
+   
+   ```rpicam-hello --list-cameras```
+   
 # Instruções de Uso
 ## 1. Configurar a Classe Alvo
 Antes de executar a captura, edite o arquivo stream_e_coleta.py para indicar a classe de objeto que será fotografada:
-   nano stream_e_coleta.py
+
+   ```nano stream_e_coleta.py```
 
 Altere o valor da variável CLASSE para o nome exato da classe correspondente (serrote, martelo, estilete ou parafuso):
-CLASSE = "serrote"  # Altere para a classe que será coletada no momento
+
+```CLASSE = "serrote"  # Altere para a classe que será coletada no momento```
+
 Salve e feche o arquivo (Ctrl + O, Enter, Ctrl + X).
 
 ## 2. Executar o Script de Streaming e Coleta
 Com o ambiente virtual ativo, inicie a aplicação:
-   python stream_e_coleta.py
+
+   ````python stream_e_coleta.py````
+   
 ## 3. Visualizar o Feed de Vídeo no Navegador
 Antes de seguir, verifique o endereço IP local da sua Raspberry Pi através do comando ```hostname -I``` no terminal. Abra um navegador no computador (Chrome, Firefox ou Edge) e acesse a URL:
-   http://<IP_DA_RASPBERRY_PI>:8080
+
+   ````http://<IP_DA_RASPBERRY_PI>:8080````
+   
 Utilize a transmissão em tempo real para ajustar o enquadramento, foco, distância e iluminação da peça sobre a esteira/bancada.
 
 ## 4. Atalhos de Controle pelo Terminal
 Retorne à janela do terminal SSH para operar a captura de imagens através dos comandos:
+
 s + ENTER: Captura e salva uma imagem em alta resolução ($1280 \times 720$) na pasta da classe ativa.
+
 d + ENTER: Apaga a última foto gravada durante a sessão (útil em caso de borrões ou desalinhamento).
+
 e + ENTER: Finaliza a execução do programa e salva o progresso atual.
 
 # Exportação e Unificação do Lote
