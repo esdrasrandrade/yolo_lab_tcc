@@ -47,7 +47,7 @@ No terminal, acesse a pasta:
 ## 1. Configurar a Classe Alvo
 Antes de executar a captura, edite o arquivo stream_e_coleta.py para indicar a classe de objeto que será fotografada:
 
-   ```nano stream_e_coleta.py```
+   ```nano coleta_fotos.py```
 
 Altere o valor da variável CLASSE para o nome exato da classe correspondente (serrote, martelo, estilete ou parafuso):
 
