@@ -58,7 +58,7 @@ Salve e feche o arquivo (Ctrl + O, Enter, Ctrl + X).
 ## 2. Executar o Script de Streaming e Coleta
 Com o ambiente virtual ativo, inicie a aplicação:
 
-   ````python stream_e_coleta.py````
+   ````python coleta_fotos.py````
    
 ## 3. Visualizar o Feed de Vídeo no Navegador e imagens capturadas para o dataset 
 Antes de seguir, verifique o endereço IP local da sua Raspberry Pi através do comando ```hostname -I``` no terminal.
