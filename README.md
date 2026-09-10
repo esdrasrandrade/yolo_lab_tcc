@@ -73,10 +73,14 @@ e + ENTER: Finaliza a execução do programa e salva o progresso atual.
 
 # Exportação e Unificação do Lote
 Ao concluir a coleta do seu lote de amostras (meta de 400 imagens por classe), siga os passos abaixo para compactar e disponibilizar os arquivos para unificação:
+
 1. Compactar o Lote na Raspberry Pi:
-   zip -r lote_imagens.zip tcc_vita_dataset/
-2. Baixar o Arquivo para o Computador Local (via PowerShell/Terminal do Windows):
-   scp usuario@<IP_DA_RASPBERRY_PI>:~/yolo_lab/lote_imagens.zip C:\Caminho\De\Destino\
+   
+   ````zip -r lote_imagens.zip tcc_vita_dataset/````
+   
+3. Baixar o Arquivo para o Computador Local (via PowerShell/Terminal do Windows):
+   
+   ````scp usuario@<IP_DA_RASPBERRY_PI>:~/yolo_lab/lote_imagens.zip C:\Caminho\De\Destino\````
 
 Pronto, após todo esse procedimento, as capturas estarão salvas e no jeito de ser compartilhado.
    
