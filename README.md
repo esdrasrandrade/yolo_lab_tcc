@@ -28,12 +28,17 @@ Requisitos Prévios
 
 1. Clonar o repositório
    git clone [https://github.com/esdrasrandrade/yolo_lab_tcc.git](https://github.com/esdrasrandrade/yolo_lab_tcc.git)
-   cd yolo_lab_tcc
-2. Criar e Ativar o Ambiente Virtual (venv)
-   python -m venv venv
-   source venv/bin/activate
+No terminal, acesse a pasta:
 
-3. Verificar a Conexão da Câmera
+   ````cd yolo_lab_tcc````
+   
+3. Criar e Ativar o Ambiente Virtual (venv)
+   
+   ````python -m venv venv````
+   ````source venv/bin/activate````
+
+5. Verificar a Conexão da Câmera
+   
    Certifique-se de que o sensor é identificado pelo sistema:
    
    ```rpicam-hello --list-cameras```
