@@ -48,7 +48,6 @@ picam2.start()
 
 class StreamingHandler(BaseHTTPRequestHandler):
 
-    # Oculta logs do servidor no terminal
     def log_message(self, format, *args):
         return
 
@@ -76,7 +75,7 @@ class StreamingHandler(BaseHTTPRequestHandler):
             except Exception:
                 pass
 
-        # 2. Galeria de Fotos em /fotos
+        # 2. Galeria de Fotos em /fotos (Com Pré-visualização das imagens)
         elif self.path == "/fotos":
             self.send_response(200)
             self.send_header("Content-type", "text/html; charset=utf-8")
@@ -87,21 +86,33 @@ class StreamingHandler(BaseHTTPRequestHandler):
             <html>
             <head>
                 <style>
-                    body {{ font-family: sans-serif; padding: 20px; }}
-                    ul {{ line-height: 1.8; }}
+                    body {{ font-family: sans-serif; padding: 20px; background-color: #f4f4f9; }}
+                    h2 {{ color: #333; }}
+                    .btn-reload {{ display: inline-block; padding: 8px 15px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; margin-bottom: 20px; }}
+                    .grid-container {{ display: flex; flex-wrap: wrap; gap: 20px; list-style: none; padding: 0; }}
+                    .card {{ background: white; border: 1px solid #ddd; border-radius: 8px; padding: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); width: 320px; text-align: center; }}
+                    .card img {{ width: 100%; height: auto; border-radius: 4px; display: block; margin-top: 8px; }}
+                    .card a {{ font-weight: bold; color: #007bff; text-decoration: none; word-break: break-all; }}
                 </style>
             </head>
             <body>
                 <h2>Fotos Salvas - Classe: {CLASSE.upper()} ({len(arquivos)}/{TOTAL_AMOSTRAS})</h2>
-                <p><a href="/fotos">🔄 Recarregar Galeria</a></p>
-                <ul>
+                <a href="/fotos" class="btn-reload">🔄 Recarregar Galeria</a>
+                <ol class="grid-container">
             """
             if not arquivos:
                 html += "<li><i>Nenhuma foto salva até o momento.</i></li>"
             else:
                 for arq in arquivos:
-                    html += f'<li><a href="/foto/{arq}" target="_blank">{arq}</a></li>'
-            html += "</ul></body></html>"
+                    html += f"""
+                    <li class="card">
+                        <a href="/foto/{arq}" target="_blank">{arq}</a>
+                        <a href="/foto/{arq}" target="_blank">
+                            <img src="/foto/{arq}" alt="{arq}">
+                        </a>
+                    </li>
+                    """
+            html += "</ol></body></html>"
             self.wfile.write(html.encode("utf-8"))
 
         # 3. Exibição de foto individual
@@ -173,7 +184,6 @@ try:
                 print("❌ Erro na captura.")
 
         elif comando == "d":
-            # Se passou um número após o d (ex: d 0 ou d 9)
             if len(partes) > 1 and partes[1].isdigit():
                 idx_alvo = int(partes[1])
                 nome_alvo = f"{CLASSE}_{idx_alvo:04d}.jpg"
@@ -188,7 +198,6 @@ try:
                         f"⚠️ A foto '{nome_alvo}' não foi encontrada na pasta."
                     )
 
-            # Se digitou apenas 'd', apaga a última foto da pasta
             else:
                 arquivos = obter_arquivos_ordenados()
                 if arquivos:
