@@ -74,6 +74,10 @@ s + ENTER: Captura e salva uma imagem em alta resolução ($1280 \times 720$) na
 
 d + ENTER: Apaga a última foto gravada durante a sessão (útil em caso de borrões ou desalinhamento).
 
+d [N] + ENTER: Apaga a foto específica da listagem por numeração no final do arquivo .jpg, exemplo: 
+   d 211 + ENTER -> Apaga a foto serrote_0211.jpg especificamente. 
+Essa busca por índice não é por ordem de arquivos na lista, e sim pelo número no final depois do "_" no nome do arquivo.
+
 e + ENTER: Finaliza a execução do programa e salva o progresso atual.
 
 # Exportação e Unificação do Lote
