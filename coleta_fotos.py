@@ -1,10 +1,11 @@
 import io
 import os
-import subprocess
+import sys
+import time
+import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
-import threading
-import time
+from picamera2 import Picamera2
 
 CLASSE = "serrote"  # Altere para "martelo", "parafuso", etc.
 PASTA_DESTINO = f"tcc_vita_dataset/images/{CLASSE}"
@@ -13,12 +14,17 @@ TOTAL_AMOSTRAS = 400
 os.makedirs(PASTA_DESTINO, exist_ok=True)
 
 
-def obter_proximo_indice():
+def obter_arquivos_ordenados():
     arquivos = [
         f
         for f in os.listdir(PASTA_DESTINO)
         if f.startswith(CLASSE) and f.endswith(".jpg")
     ]
+    return sorted(arquivos)
+
+
+def obter_proximo_indice():
+    arquivos = obter_arquivos_ordenados()
     if not arquivos:
         return 0
     indices = []
@@ -32,15 +38,22 @@ def obter_proximo_indice():
 
 
 proximo_indice = obter_proximo_indice()
-ultima_foto_salva = None
-frame_atual = None
-lock_frame = threading.Lock()
-camera_bloqueada = False  # Flag para pausar o stream durante o clique
+
+# Inicialização Nativa da Câmera
+picam2 = Picamera2()
+config = picam2.create_preview_configuration(main={"size": (1280, 720)})
+picam2.configure(config)
+picam2.start()
 
 
 class StreamingHandler(BaseHTTPRequestHandler):
 
+    # Oculta logs do servidor no terminal
+    def log_message(self, format, *args):
+        return
+
     def do_GET(self):
+        # 1. Transmissão em Tempo Real
         if self.path == "/":
             self.send_response(200)
             self.send_header(
@@ -49,11 +62,9 @@ class StreamingHandler(BaseHTTPRequestHandler):
             self.end_headers()
             try:
                 while True:
-                    with lock_frame:
-                        if frame_atual is None:
-                            time.sleep(0.05)
-                            continue
-                        buf = frame_atual
+                    stream = io.BytesIO()
+                    picam2.capture_file(stream, format="jpeg")
+                    buf = stream.getvalue()
 
                     self.wfile.write(b"--FRAME\r\n")
                     self.send_header("Content-Type", "image/jpeg")
@@ -61,9 +72,50 @@ class StreamingHandler(BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(buf)
                     self.wfile.write(b"\r\n")
-                    time.sleep(0.1)
+                    time.sleep(0.08)
             except Exception:
                 pass
+
+        # 2. Galeria de Fotos em /fotos
+        elif self.path == "/fotos":
+            self.send_response(200)
+            self.send_header("Content-type", "text/html; charset=utf-8")
+            self.end_headers()
+
+            arquivos = obter_arquivos_ordenados()
+            html = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: sans-serif; padding: 20px; }}
+                    ul {{ line-height: 1.8; }}
+                </style>
+            </head>
+            <body>
+                <h2>Fotos Salvas - Classe: {CLASSE.upper()} ({len(arquivos)}/{TOTAL_AMOSTRAS})</h2>
+                <p><a href="/fotos">🔄 Recarregar Galeria</a></p>
+                <ul>
+            """
+            if not arquivos:
+                html += "<li><i>Nenhuma foto salva até o momento.</i></li>"
+            else:
+                for arq in arquivos:
+                    html += f'<li><a href="/foto/{arq}" target="_blank">{arq}</a></li>'
+            html += "</ul></body></html>"
+            self.wfile.write(html.encode("utf-8"))
+
+        # 3. Exibição de foto individual
+        elif self.path.startswith("/foto/"):
+            nome_arq = self.path.replace("/foto/", "")
+            caminho_completo = os.path.join(PASTA_DESTINO, nome_arq)
+            if os.path.exists(caminho_completo):
+                self.send_response(200)
+                self.send_header("Content-type", "image/jpeg")
+                self.end_headers()
+                with open(caminho_completo, "rb") as f:
+                    self.wfile.write(f.read())
+            else:
+                self.send_error(404, "Arquivo nao encontrado")
 
 
 class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
@@ -76,102 +128,80 @@ def iniciar_servidor_http():
     server.serve_forever()
 
 
-def capturar_frames():
-    global frame_atual, camera_bloqueada
-    while True:
-        # Se a tecla 's' foi pressionada, a thread do stream espera a câmera ser liberada
-        if camera_bloqueada:
-            time.sleep(0.1)
-            continue
-
-        cmd = [
-            "rpicam-still",
-            "-o",
-            "-",
-            "-t",
-            "1",
-            "--width",
-            "640",
-            "--height",
-            "480",
-            "-n",
-            "--quality",
-            "50",
-        ]
-        proc = subprocess.run(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
-        )
-        if proc.returncode == 0:
-            with lock_frame:
-                frame_atual = proc.stdout
-        time.sleep(0.05)
-
-
 threading.Thread(target=iniciar_servidor_http, daemon=True).start()
-threading.Thread(target=capturar_frames, daemon=True).start()
 
 print(f"=== STREAMING E COLETA TCC V.I.T.A ===")
-print(f"Abra no navegador do PC: http://100.78.71.106:8080")
+print(f"Abra o Stream no navegador: http://100.78.71.106:8080")
+print(f"Abra a Galeria no navegador: http://100.78.71.106:8080/fotos")
 print(
     f"Classe ativa: {CLASSE.upper()} | Fotos: {proximo_indice}/{TOTAL_AMOSTRAS}"
 )
 print("-" * 40)
 print("Comandos do Terminal:")
-print("  s + ENTER -> Capturar foto em ALTA RESOLUÇÃO")
-print("  d + ENTER -> Deletar última foto")
-print("  e + ENTER -> Sair")
+print("  s + ENTER     -> Capturar nova foto")
+print("  d + ENTER     -> Deletar a última foto salva")
+print("  d N + ENTER   -> Deletar foto específica (ex: d 0, d 9, d 12)")
+print("  e + ENTER     -> Sair")
 print("-" * 40)
 
-while proximo_indice < TOTAL_AMOSTRAS:
-    comando = (
-        input(f"[{proximo_indice}/{TOTAL_AMOSTRAS}] Digite 's', 'd' ou 'e': ")
-        .strip()
-        .lower()
-    )
-
-    if comando == "s":
-        # Bloqueia o stream para garantir acesso exclusivo do hardware para a foto
-        camera_bloqueada = True
-        time.sleep(0.2)  # Aguarda o último frame do stream encerrar
-
-        nome_arquivo = os.path.join(
-            PASTA_DESTINO, f"{CLASSE}_{proximo_indice:04d}.jpg"
-        )
-        cmd = [
-            "rpicam-still",
-            "-o",
-            nome_arquivo,
-            "-t",
-            "100",
-            "--width",
-            "1280",
-            "--height",
-            "720",
-            "-n",
-        ]
-        res = subprocess.run(
-            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
-
-        if res.returncode == 0 and os.path.exists(nome_arquivo):
-            print(f"✓ Foto salva: {nome_arquivo}")
-            ultima_foto_salva = nome_arquivo
-            proximo_indice += 1
-        else:
-            print(
-                "❌ Erro na captura. Tentando novamente na próxima tecla 's'."
+try:
+    while proximo_indice < TOTAL_AMOSTRAS:
+        entrada = (
+            input(
+                f"[{proximo_indice}/{TOTAL_AMOSTRAS}] Digite 's', 'd [N]' ou 'e': "
             )
+            .strip()
+            .lower()
+        )
+        partes = entrada.split()
 
-        # Libera o stream novamente
-        camera_bloqueada = False
+        if not partes:
+            continue
 
-    elif comando == "d":
-        if ultima_foto_salva and os.path.exists(ultima_foto_salva):
-            os.remove(ultima_foto_salva)
-            print(f"🗑 Foto deletada: {ultima_foto_salva}")
-            proximo_indice -= 1
-            ultima_foto_salva = None
+        comando = partes[0]
 
-    elif comando == "e":
-        print("\nEncerrando...")
-        break
+        if comando == "s":
+            nome_arquivo = os.path.join(
+                PASTA_DESTINO, f"{CLASSE}_{proximo_indice:04d}.jpg"
+            )
+            picam2.capture_file(nome_arquivo)
+
+            if os.path.exists(nome_arquivo):
+                print(f"✓ Foto salva: {nome_arquivo}")
+                proximo_indice = obter_proximo_indice()
+            else:
+                print("❌ Erro na captura.")
+
+        elif comando == "d":
+            # Se passou um número após o d (ex: d 0 ou d 9)
+            if len(partes) > 1 and partes[1].isdigit():
+                idx_alvo = int(partes[1])
+                nome_alvo = f"{CLASSE}_{idx_alvo:04d}.jpg"
+                caminho_alvo = os.path.join(PASTA_DESTINO, nome_alvo)
+
+                if os.path.exists(caminho_alvo):
+                    os.remove(caminho_alvo)
+                    print(f"🗑 Foto deletada especificamente: {caminho_alvo}")
+                    proximo_indice = obter_proximo_indice()
+                else:
+                    print(
+                        f"⚠️ A foto '{nome_alvo}' não foi encontrada na pasta."
+                    )
+
+            # Se digitou apenas 'd', apaga a última foto da pasta
+            else:
+                arquivos = obter_arquivos_ordenados()
+                if arquivos:
+                    ultima_foto = os.path.join(PASTA_DESTINO, arquivos[-1])
+                    if os.path.exists(ultima_foto):
+                        os.remove(ultima_foto)
+                        print(f"🗑 Última foto deletada: {ultima_foto}")
+                        proximo_indice = obter_proximo_indice()
+                else:
+                    print("⚠️ Nenhuma foto encontrada na pasta para deletar.")
+
+        elif comando == "e":
+            print("\nEncerrando...")
+            break
+finally:
+    picam2.stop()
