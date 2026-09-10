@@ -6,7 +6,7 @@ from socketserver import ThreadingMixIn
 import threading
 import time
 
-CLASSE = "serrote"  # Altere para "martelo" quando necessário
+CLASSE = "serrote"  # Altere para "martelo", "parafuso", etc.
 PASTA_DESTINO = f"tcc_vita_dataset/images/{CLASSE}"
 TOTAL_AMOSTRAS = 400
 
@@ -34,23 +34,22 @@ def obter_proximo_indice():
 proximo_indice = obter_proximo_indice()
 ultima_foto_salva = None
 frame_atual = None
-lock = threading.Lock()
+lock_frame = threading.Lock()
+camera_bloqueada = False  # Flag para pausar o stream durante o clique
 
 
-# Servidor Web para o Stream MJPEG
 class StreamingHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/":
             self.send_response(200)
             self.send_header(
-                "Content-type",
-                "multipart/x-mixed-replace; boundary=FRAME",
+                "Content-type", "multipart/x-mixed-replace; boundary=FRAME"
             )
             self.end_headers()
             try:
                 while True:
-                    with lock:
+                    with lock_frame:
                         if frame_atual is None:
                             time.sleep(0.05)
                             continue
@@ -62,7 +61,7 @@ class StreamingHandler(BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(buf)
                     self.wfile.write(b"\r\n")
-                    time.sleep(0.08)  # ~12 FPS no navegador
+                    time.sleep(0.1)
             except Exception:
                 pass
 
@@ -77,11 +76,14 @@ def iniciar_servidor_http():
     server.serve_forever()
 
 
-# Loop contínuo para atualizar a imagem visualizada
 def capturar_frames():
-    global frame_atual
+    global frame_atual, camera_bloqueada
     while True:
-        # Pega uma amostra leve e rápida do sensor para a Web
+        # Se a tecla 's' foi pressionada, a thread do stream espera a câmera ser liberada
+        if camera_bloqueada:
+            time.sleep(0.1)
+            continue
+
         cmd = [
             "rpicam-still",
             "-o",
@@ -96,20 +98,23 @@ def capturar_frames():
             "--quality",
             "50",
         ]
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        proc = subprocess.run(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+        )
         if proc.returncode == 0:
-            with lock:
+            with lock_frame:
                 frame_atual = proc.stdout
         time.sleep(0.05)
 
 
-# Inicializa as threads do servidor e do stream
 threading.Thread(target=iniciar_servidor_http, daemon=True).start()
 threading.Thread(target=capturar_frames, daemon=True).start()
 
 print(f"=== STREAMING E COLETA TCC V.I.T.A ===")
 print(f"Abra no navegador do PC: http://100.78.71.106:8080")
-print(f"Classe ativa: {CLASSE.upper()} | Fotos: {proximo_indice}/{TOTAL_AMOSTRAS}")
+print(
+    f"Classe ativa: {CLASSE.upper()} | Fotos: {proximo_indice}/{TOTAL_AMOSTRAS}"
+)
 print("-" * 40)
 print("Comandos do Terminal:")
 print("  s + ENTER -> Capturar foto em ALTA RESOLUÇÃO")
@@ -125,10 +130,13 @@ while proximo_indice < TOTAL_AMOSTRAS:
     )
 
     if comando == "s":
+        # Bloqueia o stream para garantir acesso exclusivo do hardware para a foto
+        camera_bloqueada = True
+        time.sleep(0.2)  # Aguarda o último frame do stream encerrar
+
         nome_arquivo = os.path.join(
             PASTA_DESTINO, f"{CLASSE}_{proximo_indice:04d}.jpg"
         )
-        # Captura a foto final em boa resolução (720p)
         cmd = [
             "rpicam-still",
             "-o",
@@ -150,7 +158,12 @@ while proximo_indice < TOTAL_AMOSTRAS:
             ultima_foto_salva = nome_arquivo
             proximo_indice += 1
         else:
-            print("❌ Erro na captura.")
+            print(
+                "❌ Erro na captura. Tentando novamente na próxima tecla 's'."
+            )
+
+        # Libera o stream novamente
+        camera_bloqueada = False
 
     elif comando == "d":
         if ultima_foto_salva and os.path.exists(ultima_foto_salva):
