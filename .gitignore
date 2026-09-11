@@ -1,5 +1,9 @@
 venv/
+.venv/
 *.pt
 *.zip
 __pycache__/
 .DS_Store
+*.pyc
+*.pt
+*.swp

@@ -7,9 +7,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
 from picamera2 import Picamera2
 
-CLASSE = "serrote"  # Altere para "martelo", "parafuso", etc.
+CLASSE = "estilete"  # Altere para "martelo", "parafuso", etc.
 PASTA_DESTINO = f"tcc_vita_dataset/images/{CLASSE}"
-TOTAL_AMOSTRAS = 201
+TOTAL_AMOSTRAS = 203
 
 os.makedirs(PASTA_DESTINO, exist_ok=True)
 
